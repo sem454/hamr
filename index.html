@@ -179,7 +179,7 @@ function tick(){if(!running)return;const now=ctx.currentTime-t0;
     else{const prev=events[idx-1]?events[idx-1].t:0;$('dBar').style.width=Math.min(100,Math.max(0,(now-prev)/(nxt.t-prev)*100)).toFixed(0)+'%';}}
   $('mClock').textContent=fmt(now);}
 function finish(how){running=false;clearInterval(timer);scheduled=0;unlock();$('btnStart').classList.remove('hidden');$('btnStop').classList.add('hidden');$('intSetup').style.opacity=1;
-  const L=mode==='full'?levelOf(lastShuttle):null;const msg=mode==='full'?`${how==='stopped'?'Stopped':'Done'} at shuttle ${lastShuttle}${L?` (level ${L[0]})`:''}`:`${how==='stopped'?'Stopped':'Done'}: ${sessionLabel}, ${lastShuttle} shuttles total`;
+  const L=mode==='full'&&lastShuttle>0?levelOf(lastShuttle):null;const msg=mode==='full'?`${how==='stopped'?'Stopped':'Done'} at shuttle ${lastShuttle}${L?` (level ${L[0]})`:''}`:`${how==='stopped'?'Stopped':'Done'}: ${sessionLabel}, ${lastShuttle} shuttles total`;
   setState('ready',msg);say(how==='stopped'?`Stopped at ${lastShuttle}`:'Done');addLog(msg);}
 function addLog(msg){const d=new Date();const line=`${d.toISOString().slice(0,10)} ${d.toTimeString().slice(0,5)}  ${msg}`;const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');arr.unshift(line);localStorage.setItem('hamrlog',JSON.stringify(arr.slice(0,50)));renderLog();}
 function renderLog(){const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');$('log').innerHTML=arr.map(x=>`<li>${x}</li>`).join('')||'<li>nothing yet</li>';}
