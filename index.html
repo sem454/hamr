@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>HAMR Runner</title>
+<style>
+  :root{--bg:#0b0e13;--fg:#e8ecf1;--dim:#8a94a3;--acc:#4cc9f0;--ok:#3ddc84;--warn:#ffb020;--bad:#ff4d4d;--card:#151a22}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none}
+  body{padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+  h1{font-size:18px;margin:12px 0 4px;letter-spacing:.04em}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:12px}
+  .tabs{display:flex;gap:6px;margin-bottom:12px}
+  .tabs button{flex:1;padding:10px;border:1px solid #2a3240;background:var(--card);color:var(--fg);border-radius:8px;font-size:15px}
+  .tabs button.on{background:var(--acc);color:#000;border-color:var(--acc);font-weight:600}
+  .card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px}
+  label{display:block;color:var(--dim);font-size:13px;margin-bottom:4px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:110px}
+  select,input{width:100%;padding:10px;border-radius:8px;border:1px solid #2a3240;background:#0f1319;color:var(--fg);font-size:16px}
+  .big{text-align:center;padding:18px 8px}
+  .num{font-size:96px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .lbl{color:var(--dim);font-size:14px;text-transform:uppercase;letter-spacing:.08em}
+  .meta{display:flex;justify-content:space-around;margin-top:14px;font-variant-numeric:tabular-nums}
+  .meta b{display:block;font-size:22px}
+  .meta span{color:var(--dim);font-size:12px;text-transform:uppercase}
+  .bar{height:10px;background:#0f1319;border-radius:5px;overflow:hidden;margin-top:14px}
+  .bar i{display:block;height:100%;background:var(--acc);width:0%}
+  .btn{width:100%;padding:18px;border:0;border-radius:12px;font-size:20px;font-weight:700;margin-top:8px}
+  .go{background:var(--ok);color:#000}.stop{background:var(--bad);color:#fff}.mid{background:#2a3240;color:var(--fg);font-size:16px;padding:12px}
+  .state{font-size:22px;font-weight:600;margin-top:6px;min-height:28px}
+  .state.rest{color:var(--warn)}.state.run{color:var(--ok)}.state.ready{color:var(--acc)}
+  table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+  td,th{padding:6px 4px;border-bottom:1px solid #222a35;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  tr.hl td{color:var(--acc);font-weight:600}
+  .log li{font-size:14px;color:var(--dim);margin:4px 0}
+  .small{font-size:12px;color:var(--dim)}
+  .toggles{display:flex;gap:14px;margin-top:8px;font-size:14px;color:var(--dim)}
+  .toggles label{display:flex;align-items:center;gap:6px;margin:0;color:var(--fg)}
+  .toggles input{width:auto}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<h1>HAMR RUNNER</h1>
+<div class="sub">20 m shuttle. Cadence measured off the official Air Force HAMR audio file, level by level.</div>
+
+<div class="tabs">
+  <button id="tabInt" class="on">Intervals</button>
+  <button id="tabFull">Full test</button>
+  <button id="tabTable">Levels</button>
+</div>
+
+<div id="paneInt">
+  <div class="card" id="intSetup">
+    <div class="row">
+      <div><label>Level (cadence)</label><select id="selLevel"></select></div>
+      <div><label>Shuttles per set</label><input id="inShuttles" type="number" inputmode="numeric" value="8" min="2" max="40"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Sets</label><input id="inSets" type="number" inputmode="numeric" value="4" min="1" max="12"></div>
+      <div><label>Rest between sets (s)</label><input id="inRest" type="number" inputmode="numeric" value="90" min="10" max="600"></div>
+    </div>
+    <div class="small" id="intInfo" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="paneFull" class="hidden">
+  <div class="card">
+    <div class="small">Runs the full test at the measured cadence: level 1 is 8.0 km/h, then 9.0, and +0.5 km/h per level. Triple beep at each level change. Tap STOP when you cannot make the line; your score is the last shuttle you completed.</div>
+    <div class="row" style="margin-top:10px"><div><label>Stop automatically at shuttle (0 = run to failure)</label><input id="inStopAt" type="number" inputmode="numeric" value="0" min="0" max="242"></div></div>
+  </div>
+</div>
+
+<div id="paneTable" class="hidden">
+  <div class="card">
+    <table id="tblLevels"><thead><tr><th>Lvl</th><th>Shuttles</th><th>s / shuttle</th><th>km/h</th><th>min/mi</th></tr></thead><tbody></tbody></table>
+    <div class="small" style="margin-top:8px">45-49 male: 77 shuttles = 50 pts, 58 = 45, 47 = 40 (Excellent with other events maxed), 31 = minimum. Highlight = level 9, where 77 lives.</div>
+  </div>
+</div>
+
+<div class="card big" id="display">
+  <div class="lbl" id="dLabel">Ready</div>
+  <div class="num" id="dNum">0</div>
+  <div class="state ready" id="dState">Tap START</div>
+  <div class="bar"><i id="dBar"></i></div>
+  <div class="meta">
+    <div><b id="mLevel">-</b><span>level</span></div>
+    <div><b id="mCad">-</b><span>s / shuttle</span></div>
+    <div><b id="mNext">-</b><span>next beep</span></div>
+    <div><b id="mClock">0:00</b><span>elapsed</span></div>
+  </div>
+  <button class="btn go" id="btnStart">START</button>
+  <button class="btn stop hidden" id="btnStop">STOP</button>
+  <div class="toggles">
+    <label><input type="checkbox" id="chkVoice" checked> Voice count</label>
+    <label><input type="checkbox" id="chkCountdown" checked> 10 s countdown</label>
+  </div>
+  <div class="small" style="margin-top:8px">Silent switch on an iPhone mutes web audio. Ringer ON, volume up. Screen stays awake while running.</div>
+</div>
+
+<div class="card">
+  <div class="lbl">Log (this phone)</div>
+  <ul class="log" id="log"></ul>
+  <button class="btn mid" id="btnClear">Clear log</button>
+</div>
+
+<audio id="silent" loop playsinline src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="></audio>
+
+<script>
+// Measured from the official AF 20 m HAMR audio (Ellsworth FSS copy, 21:54 long), beep-to-beep, 2026-09-09.
+const LEVELS=[[1,1,7,8.97],[2,8,15,7.96],[3,16,23,7.54],[4,24,32,7.16],[5,33,41,6.83],[6,42,50,6.50],[7,51,60,6.20],[8,61,70,5.95],[9,71,81,5.70],[10,82,92,5.50],[11,93,104,5.28],[12,105,116,5.10],[13,117,129,4.92],[14,130,142,4.75],[15,143,155,4.60],[16,156,169,4.45],[17,170,183,4.32],[18,184,198,4.18],[19,199,213,4.06],[20,214,228,3.95],[21,229,242,3.83]];
+const kmh=s=>20/s*3.6, pace=s=>{const m=60/(kmh(s)*0.621371);return `${Math.floor(m)}:${String(Math.round((m%1)*60)).padStart(2,'0')}`};
+const levelOf=n=>LEVELS.find(l=>n>=l[1]&&n<=l[2])||LEVELS[LEVELS.length-1];
+const $=id=>document.getElementById(id);
+
+// UI: tabs
+let mode='int';
+const panes={int:$('paneInt'),full:$('paneFull'),table:$('paneTable')};
+function setTab(m){mode=m;for(const k in panes)panes[k].classList.toggle('hidden',k!==m);$('tabInt').classList.toggle('on',m==='int');$('tabFull').classList.toggle('on',m==='full');$('tabTable').classList.toggle('on',m==='table');}
+$('tabInt').onclick=()=>setTab('int');$('tabFull').onclick=()=>setTab('full');$('tabTable').onclick=()=>setTab('table');
+
+// level select + table
+LEVELS.forEach(l=>{const o=document.createElement('option');o.value=l[0];o.textContent=`Level ${l[0]}  ${l[3].toFixed(2)} s  ${kmh(l[3]).toFixed(1)} km/h  (shuttles ${l[1]}-${l[2]})`;$('selLevel').appendChild(o);});
+$('selLevel').value='9';
+const tb=$('tblLevels').querySelector('tbody');
+LEVELS.forEach(l=>{const tr=document.createElement('tr');if(l[0]===9)tr.className='hl';tr.innerHTML=`<td>${l[0]}</td><td>${l[1]}-${l[2]}</td><td>${l[3].toFixed(2)}</td><td>${kmh(l[3]).toFixed(1)}</td><td>${pace(l[3])}</td>`;tb.appendChild(tr);});
+function intInfo(){const L=LEVELS[+$('selLevel').value-1],n=+$('inShuttles').value,s=+$('inSets').value,r=+$('inRest').value;const work=n*L[3];$('intInfo').textContent=`${s} x ${n} shuttles at ${L[3].toFixed(2)} s (${kmh(L[3]).toFixed(1)} km/h, ${pace(L[3])} min/mi with turns). Each set ${work.toFixed(0)} s work, ${r} s rest. Total about ${Math.round((work*s+r*(s-1))/60)} min.`}
+['selLevel','inShuttles','inSets','inRest'].forEach(id=>$(id).addEventListener('input',intInfo));intInfo();
+
+// audio
+let ctx=null;
+function ensureAudio(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();}if(ctx.state==='suspended')ctx.resume();try{$('silent').play().catch(()=>{});}catch(e){}}
+function beep(t,freq=1000,dur=0.18,gain=0.9){const o=ctx.createOscillator(),g=ctx.createGain();o.type='square';o.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+0.005);g.gain.setValueAtTime(gain,t+dur-0.02);g.gain.linearRampToValueAtTime(0,t+dur);o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+dur+0.01);}
+function triple(t){beep(t,1200,0.12);beep(t+0.17,1200,0.12);beep(t+0.34,1200,0.12);}
+function say(txt){if(!$('chkVoice').checked||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(txt);u.rate=1.15;u.volume=1;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+
+// wake lock
+let wl=null;async function lock(){try{if('wakeLock'in navigator){wl=await navigator.wakeLock.request('screen');}}catch(e){}}
+function unlock(){if(wl){wl.release().catch(()=>{});wl=null;}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running)lock();});
+
+// schedule = list of events {t, kind:'beep'|'triple'|'set'|'rest'|'done', shuttle, level, set, label, spoken}
+let events=[],idx=0,running=false,t0=0,timer=null,sessionLabel='',stopAt=0,lastShuttle=0,curSet=0;
+function buildInterval(){const L=LEVELS[+$('selLevel').value-1],n=+$('inShuttles').value,sets=+$('inSets').value,rest=+$('inRest').value;const ev=[];let t=$('chkCountdown').checked?10:3;
+  for(let s=1;s<=sets;s++){ev.push({t,kind:'setstart',set:s,level:L[0],cad:L[3],spoken:`Set ${s}. Go.`});for(let k=1;k<=n;k++){t+=L[3];ev.push({t,kind:k===n?'setend':'beep',shuttle:k,set:s,level:L[0],cad:L[3],spoken:String(k)});}
+    if(s<sets){ev.push({t:t+0.5,kind:'rest',set:s,level:L[0],cad:L[3],rest:rest,spoken:`Rest ${rest} seconds.`});t+=rest;}}
+  ev.push({t:t+0.6,kind:'done',level:L[0],cad:L[3]});sessionLabel=`${sets}x${n} @ L${L[0]} (${L[3].toFixed(2)} s)`;return ev;}
+function buildFull(){const ev=[];let t=$('chkCountdown').checked?10:3;ev.push({t,kind:'setstart',set:1,level:1,cad:LEVELS[0][3],spoken:'Level 1. Go.'});let n=0;
+  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],spoken:nextL?`${k}. Level ${nextL[0]}.`:String(k)});if(stopAt&&k>=stopAt)break;}if(stopAt&&n>=stopAt)break;}
+  ev.push({t:t+0.6,kind:'done'});sessionLabel=stopAt?`Full test to shuttle ${stopAt}`:'Full test to failure';return ev;}
+
+function fmt(s){s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function start(){ensureAudio();stopAt=+$('inStopAt').value||0;events=mode==='full'?buildFull():buildInterval();if(mode==='table'){setTab('int');events=buildInterval();}
+  idx=0;lastShuttle=0;curSet=1;running=true;t0=ctx.currentTime+0.05;$('btnStart').classList.add('hidden');$('btnStop').classList.remove('hidden');$('intSetup').style.opacity=.5;lock();
+  // countdown beeps
+  const cd=$('chkCountdown').checked?10:3;for(let i=3;i>=1;i--)beep(t0+cd-i,700,0.12,0.6);say(cd===10?'Ten seconds':'Three');
+  setState('ready','Line up. Start beep in');$('dLabel').textContent=mode==='full'?'Shuttle':'Shuttle in set';$('dNum').textContent='0';$('mLevel').textContent=events[0].level;$('mCad').textContent=events[0].cad.toFixed(2);
+  timer=setInterval(tick,50);}
+function setState(cls,txt){const e=$('dState');e.className='state '+cls;e.textContent=txt;}
+let scheduled=0;
+function tick(){if(!running)return;const now=ctx.currentTime-t0;
+  // schedule audio up to 1.2 s ahead
+  while(scheduled<events.length&&events[scheduled].t<now+1.2){const e=events[scheduled];const at=t0+e.t;
+    if(e.kind==='beep')beep(at);else if(e.kind==='setstart')beep(at,1000,0.35);else if(e.kind==='setend'||e.kind==='levelup')triple(at);else if(e.kind==='rest'){}else if(e.kind==='done')triple(at);scheduled++;}
+  // fire UI/voice at event time
+  while(idx<events.length&&events[idx].t<=now){const e=events[idx];idx++;
+    if(e.kind==='setstart'){curSet=e.set;setState('run',mode==='full'?`Level ${e.level}`:`Set ${e.set} running`);$('dNum').textContent='0';$('mLevel').textContent=e.level;$('mCad').textContent=e.cad.toFixed(2);say(e.spoken);}
+    else if(e.kind==='beep'||e.kind==='setend'||e.kind==='levelup'){lastShuttle=mode==='full'?e.shuttle:(curSet-1)*(+$('inShuttles').value)+e.shuttle;$('dNum').textContent=e.shuttle;if(e.kind==='levelup'){$('mLevel').textContent=e.level;$('mCad').textContent=e.cad.toFixed(2);setState('run',`Level ${e.level}`);}say(e.spoken);}
+    else if(e.kind==='rest'){setState('rest',`Rest. Set ${e.set+1} starts in`);say(e.spoken);}
+    else if(e.kind==='done'){finish('completed');return;}}
+  // display: next beep countdown + rest countdown + bar
+  const nxt=events[idx];if(nxt){const rem=nxt.t-now;$('mNext').textContent=rem.toFixed(1);
+    if(nxt.kind==='setstart'){const st=$('dState');if(st.classList.contains('rest')||st.classList.contains('ready'))st.textContent=(st.classList.contains('rest')?`Rest. Set ${nxt.set} starts in `:'Line up. Start beep in ')+Math.ceil(rem)+' s';$('dBar').style.width='0%';}
+    else{const prev=events[idx-1]?events[idx-1].t:0;$('dBar').style.width=Math.min(100,Math.max(0,(now-prev)/(nxt.t-prev)*100)).toFixed(0)+'%';}}
+  $('mClock').textContent=fmt(now);}
+function finish(how){running=false;clearInterval(timer);scheduled=0;unlock();$('btnStart').classList.remove('hidden');$('btnStop').classList.add('hidden');$('intSetup').style.opacity=1;
+  const L=mode==='full'?levelOf(lastShuttle):null;const msg=mode==='full'?`${how==='stopped'?'Stopped':'Done'} at shuttle ${lastShuttle}${L?` (level ${L[0]})`:''}`:`${how==='stopped'?'Stopped':'Done'}: ${sessionLabel}, ${lastShuttle} shuttles total`;
+  setState('ready',msg);say(how==='stopped'?`Stopped at ${lastShuttle}`:'Done');addLog(msg);}
+function addLog(msg){const d=new Date();const line=`${d.toISOString().slice(0,10)} ${d.toTimeString().slice(0,5)}  ${msg}`;const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');arr.unshift(line);localStorage.setItem('hamrlog',JSON.stringify(arr.slice(0,50)));renderLog();}
+function renderLog(){const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');$('log').innerHTML=arr.map(x=>`<li>${x}</li>`).join('')||'<li>nothing yet</li>';}
+renderLog();
+$('btnStart').onclick=start;$('btnStop').onclick=()=>finish('stopped');$('btnClear').onclick=()=>{localStorage.removeItem('hamrlog');renderLog();};
+</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+[
+ {
+  "level": 1,
+  "first": 1,
+  "last": 7,
+  "shuttles": 7,
+  "sec": 8.97,
+  "kmh": 8.0,
+  "mile_pace": "12:02"
+ },
+ {
+  "level": 2,
+  "first": 8,
+  "last": 15,
+  "shuttles": 8,
+  "sec": 7.96,
+  "kmh": 9.0,
+  "mile_pace": "10:41"
+ },
+ {
+  "level": 3,
+  "first": 16,
+  "last": 23,
+  "shuttles": 8,
+  "sec": 7.54,
+  "kmh": 9.5,
+  "mile_pace": "10:07"
+ },
+ {
+  "level": 4,
+  "first": 24,
+  "last": 32,
+  "shuttles": 9,
+  "sec": 7.16,
+  "kmh": 10.1,
+  "mile_pace": "9:36"
+ },
+ {
+  "level": 5,
+  "first": 33,
+  "last": 41,
+  "shuttles": 9,
+  "sec": 6.83,
+  "kmh": 10.5,
+  "mile_pace": "9:10"
+ },
+ {
+  "level": 6,
+  "first": 42,
+  "last": 50,
+  "shuttles": 9,
+  "sec": 6.5,
+  "kmh": 11.1,
+  "mile_pace": "8:43"
+ },
+ {
+  "level": 7,
+  "first": 51,
+  "last": 60,
+  "shuttles": 10,
+  "sec": 6.2,
+  "kmh": 11.6,
+  "mile_pace": "8:19"
+ },
+ {
+  "level": 8,
+  "first": 61,
+  "last": 70,
+  "shuttles": 10,
+  "sec": 5.95,
+  "kmh": 12.1,
+  "mile_pace": "7:59"
+ },
+ {
+  "level": 9,
+  "first": 71,
+  "last": 81,
+  "shuttles": 11,
+  "sec": 5.7,
+  "kmh": 12.6,
+  "mile_pace": "7:39"
+ },
+ {
+  "level": 10,
+  "first": 82,
+  "last": 92,
+  "shuttles": 11,
+  "sec": 5.5,
+  "kmh": 13.1,
+  "mile_pace": "7:23"
+ },
+ {
+  "level": 11,
+  "first": 93,
+  "last": 104,
+  "shuttles": 12,
+  "sec": 5.28,
+  "kmh": 13.6,
+  "mile_pace": "7:05"
+ },
+ {
+  "level": 12,
+  "first": 105,
+  "last": 116,
+  "shuttles": 12,
+  "sec": 5.1,
+  "kmh": 14.1,
+  "mile_pace": "6:50"
+ },
+ {
+  "level": 13,
+  "first": 117,
+  "last": 129,
+  "shuttles": 13,
+  "sec": 4.92,
+  "kmh": 14.6,
+  "mile_pace": "6:36"
+ },
+ {
+  "level": 14,
+  "first": 130,
+  "last": 142,
+  "shuttles": 13,
+  "sec": 4.75,
+  "kmh": 15.2,
+  "mile_pace": "6:22"
+ },
+ {
+  "level": 15,
+  "first": 143,
+  "last": 155,
+  "shuttles": 13,
+  "sec": 4.6,
+  "kmh": 15.7,
+  "mile_pace": "6:10"
+ },
+ {
+  "level": 16,
+  "first": 156,
+  "last": 169,
+  "shuttles": 14,
+  "sec": 4.45,
+  "kmh": 16.2,
+  "mile_pace": "5:58"
+ },
+ {
+  "level": 17,
+  "first": 170,
+  "last": 183,
+  "shuttles": 14,
+  "sec": 4.32,
+  "kmh": 16.7,
+  "mile_pace": "5:48"
+ },
+ {
+  "level": 18,
+  "first": 184,
+  "last": 198,
+  "shuttles": 15,
+  "sec": 4.18,
+  "kmh": 17.2,
+  "mile_pace": "5:36"
+ },
+ {
+  "level": 19,
+  "first": 199,
+  "last": 213,
+  "shuttles": 15,
+  "sec": 4.06,
+  "kmh": 17.7,
+  "mile_pace": "5:27"
+ },
+ {
+  "level": 20,
+  "first": 214,
+  "last": 228,
+  "shuttles": 15,
+  "sec": 3.95,
+  "kmh": 18.2,
+  "mile_pace": "5:18"
+ },
+ {
+  "level": 21,
+  "first": 229,
+  "last": 242,
+  "shuttles": 14,
+  "sec": 3.83,
+  "kmh": 18.8,
+  "mile_pace": "5:08"
+ }
+]
