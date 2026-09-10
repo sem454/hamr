@@ -71,15 +71,15 @@
 
 <div id="paneFull" class="hidden">
   <div class="card">
-    <div class="small">Runs the full test at the measured cadence: level 1 is 8.0 km/h, then 9.0, and +0.5 km/h per level. Triple beep at each level change. Tap STOP when you cannot make the line; your score is the last shuttle you completed.</div>
-    <div class="row" style="margin-top:10px"><div><label>Stop automatically at shuttle (0 = run to failure)</label><input id="inStopAt" type="number" inputmode="numeric" value="0" min="0" max="242"></div></div>
+    <div class="small">Runs the full test at the measured cadence: level 1 is 8.0 km/h, then 9.0, and +0.5 km/h per level. Counts are called level-shuttle (7-1, 7-2 ...) like the official audio; the small readout keeps the running total. Triple beep at each level change. Tap STOP when you cannot make the line; your score is the last shuttle you completed.</div>
+    <div class="row" style="margin-top:10px"><div><label>Stop automatically at (shuttle number or level-shuttle, e.g. 50 or 6-9; 0 = run to failure)</label><input id="inStopAt" type="text" inputmode="numeric" value="0"></div></div>
   </div>
 </div>
 
 <div id="paneTable" class="hidden">
   <div class="card">
     <table id="tblLevels"><thead><tr><th>Lvl</th><th>Shuttles</th><th>s / shuttle</th><th>km/h</th><th>min/mi</th></tr></thead><tbody></tbody></table>
-    <div class="small" style="margin-top:8px">45-49 male: 77 shuttles = 50 pts, 58 = 45, 47 = 40 (Excellent with other events maxed), 31 = minimum. Highlight = level 9, where 77 lives.</div>
+    <div class="small" style="margin-top:8px">45-49 male: 77 shuttles (9-7) = 50 pts, 58 (7-8) = 45, 47 (6-6) = 40 (Excellent with other events maxed), 31 (4-8) = minimum. Highlight = level 9, where 77 lives. Counts are called level-shuttle, the way the official audio does it.</div>
   </div>
 </div>
 
@@ -90,6 +90,7 @@
   <div class="bar"><i id="dBar"></i></div>
   <div class="meta">
     <div><b id="mLevel">-</b><span>level</span></div>
+    <div><b id="mTotal">-</b><span>shuttle</span></div>
     <div><b id="mCad">-</b><span>s / shuttle</span></div>
     <div><b id="mNext">-</b><span>next beep</span></div>
     <div><b id="mClock">0:00</b><span>elapsed</span></div>
@@ -154,15 +155,17 @@ function buildInterval(){const L=LEVELS[+$('selLevel').value-1],n=+$('inShuttles
     if(s<sets){ev.push({t:t+0.5,kind:'rest',set:s,level:L[0],cad:L[3],rest:rest,spoken:`Rest ${rest} seconds.`});t+=rest;}}
   ev.push({t:t+0.6,kind:'done',level:L[0],cad:L[3]});sessionLabel=`${sets}x${n} @ L${L[0]} (${L[3].toFixed(2)} s)`;return ev;}
 function buildFull(){const ev=[];let t=$('chkCountdown').checked?10:3;ev.push({t,kind:'setstart',set:1,level:1,cad:LEVELS[0][3],spoken:'Level 1. Go.'});let n=0;
-  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],spoken:nextL?`${k}. Level ${nextL[0]}.`:String(k)});if(stopAt&&k>=stopAt)break;}if(stopAt&&n>=stopAt)break;}
-  ev.push({t:t+0.6,kind:'done'});sessionLabel=stopAt?`Full test to shuttle ${stopAt}`:'Full test to failure';return ev;}
+  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],lab:`${L[0]}-${k-L[1]+1}`,spoken:nextL?`${L[0]}-${k-L[1]+1}. Level ${nextL[0]}.`:`${L[0]}-${k-L[1]+1}`});if(stopAt&&k>=stopAt)break;}if(stopAt&&n>=stopAt)break;}
+  ev.push({t:t+0.6,kind:'done'});sessionLabel=stopAt?`Full test to ${lab(stopAt)} (shuttle ${stopAt})`:'Full test to failure';return ev;}
 
+function lab(k){const L=levelOf(k);return L?`${L[0]}-${k-L[1]+1}`:String(k)}
+function parseStop(v){v=String(v||"").trim();if(!v)return 0;const m=v.match(/^(\d+)\s*[-.,:\s]\s*(\d+)$/);if(m){const L=LEVELS[+m[1]-1];if(!L)return 0;const k=L[1]+(+m[2])-1;return k<=L[2]?k:L[2];}const n=parseInt(v,10);return isFinite(n)&&n>0?n:0;}
 function fmt(s){s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
-function start(){ensureAudio();stopAt=+$('inStopAt').value||0;events=mode==='full'?buildFull():buildInterval();if(mode==='table'){setTab('int');events=buildInterval();}
+function start(){ensureAudio();stopAt=mode==='full'?parseStop($('inStopAt').value):0;events=mode==='full'?buildFull():buildInterval();if(mode==='table'){setTab('int');events=buildInterval();}
   idx=0;scheduled=0;lastShuttle=0;curSet=1;running=true;t0=ctx.currentTime+0.05;$('btnStart').classList.add('hidden');$('btnStop').classList.remove('hidden');$('intSetup').style.opacity=.5;lock();
   // countdown beeps
   const cd=$('chkCountdown').checked?10:3;for(let i=3;i>=1;i--)beep(t0+cd-i,700,0.12,0.6);say(cd===10?'Ten seconds':'Three');
-  setState('ready','Line up. Start beep in');$('dLabel').textContent=mode==='full'?'Shuttle':'Shuttle in set';$('dNum').textContent='0';$('mLevel').textContent=events[0].level;$('mCad').textContent=events[0].cad.toFixed(2);
+  setState('ready','Line up. Start beep in');$('dLabel').textContent=mode==='full'?'Level-shuttle':'Shuttle in set';$('dNum').textContent='0';$('mTotal').textContent=mode==='full'?'0':'-';$('mLevel').textContent=events[0].level;$('mCad').textContent=events[0].cad.toFixed(2);
   timer=setInterval(tick,50);}
 function setState(cls,txt){const e=$('dState');e.className='state '+cls;e.textContent=txt;}
 let scheduled=0;
@@ -173,7 +176,7 @@ function tick(){if(!running)return;const now=ctx.currentTime-t0;
   // fire UI/voice at event time
   while(idx<events.length&&events[idx].t<=now){const e=events[idx];idx++;
     if(e.kind==='setstart'){curSet=e.set;setState('run',mode==='full'?`Level ${e.level}`:`Set ${e.set} running`);$('dNum').textContent='0';$('mLevel').textContent=e.level;$('mCad').textContent=e.cad.toFixed(2);say(e.spoken);}
-    else if(e.kind==='beep'||e.kind==='setend'||e.kind==='levelup'){lastShuttle=mode==='full'?e.shuttle:(curSet-1)*(+$('inShuttles').value)+e.shuttle;$('dNum').textContent=e.shuttle;if(e.kind==='levelup'){$('mLevel').textContent=e.level;$('mCad').textContent=e.cad.toFixed(2);setState('run',`Level ${e.level}`);}say(e.spoken);}
+    else if(e.kind==='beep'||e.kind==='setend'||e.kind==='levelup'){lastShuttle=mode==='full'?e.shuttle:(curSet-1)*(+$('inShuttles').value)+e.shuttle;$('dNum').textContent=mode==='full'?e.lab:e.shuttle;if(mode==='full')$('mTotal').textContent=e.shuttle;if(e.kind==='levelup'){$('mLevel').textContent=e.level;$('mCad').textContent=e.cad.toFixed(2);setState('run',`Level ${e.level}`);}say(e.spoken);}
     else if(e.kind==='rest'){setState('rest',`Rest. Set ${e.set+1} starts in`);say(e.spoken);}
     else if(e.kind==='done'){finish('completed');return;}}
   // display: next beep countdown + rest countdown + bar
@@ -182,12 +185,12 @@ function tick(){if(!running)return;const now=ctx.currentTime-t0;
     else{const prev=events[idx-1]?events[idx-1].t:0;$('dBar').style.width=Math.min(100,Math.max(0,(now-prev)/(nxt.t-prev)*100)).toFixed(0)+'%';}}
   $('mClock').textContent=fmt(now);}
 function finish(how){running=false;clearInterval(timer);scheduled=0;hush();unlock();$('btnStart').classList.remove('hidden');$('btnStop').classList.add('hidden');$('intSetup').style.opacity=1;
-  const L=mode==='full'&&lastShuttle>0?levelOf(lastShuttle):null;const msg=mode==='full'?`${how==='stopped'?'Stopped':'Done'} at shuttle ${lastShuttle}${L?` (level ${L[0]})`:''}`:`${how==='stopped'?'Stopped':'Done'}: ${sessionLabel}, ${lastShuttle} shuttles total`;
-  setState('ready',msg);say(how==='stopped'?`Stopped at ${lastShuttle}`:'Done');addLog(msg);}
+  const L=mode==='full'&&lastShuttle>0?levelOf(lastShuttle):null;const msg=mode==='full'?`${how==='stopped'?'Stopped':'Done'} at ${L?lab(lastShuttle)+' (shuttle '+lastShuttle+')':'shuttle '+lastShuttle}`:`${how==='stopped'?'Stopped':'Done'}: ${sessionLabel}, ${lastShuttle} shuttles total`;
+  setState('ready',msg);say(how==='stopped'?`Stopped at ${mode==='full'&&L?lab(lastShuttle).replace('-',' dash '):lastShuttle}`:'Done');addLog(msg);}
 function reset(){const was=running;running=false;clearInterval(timer);timer=null;scheduled=0;idx=0;lastShuttle=0;curSet=0;events=[];hush();unlock();
   $('btnStart').classList.remove('hidden');$('btnStop').classList.add('hidden');$('intSetup').style.opacity=1;
   $('dLabel').textContent='Ready';$('dNum').textContent='0';setState('ready','Tap START');$('dBar').style.width='0%';
-  $('mLevel').textContent='-';$('mCad').textContent='-';$('mNext').textContent='-';$('mClock').textContent='0:00';
+  $('mLevel').textContent='-';$('mTotal').textContent='-';$('mCad').textContent='-';$('mNext').textContent='-';$('mClock').textContent='0:00';
   if(was)say('Reset');}
 function addLog(msg){const d=new Date();const line=`${d.toISOString().slice(0,10)} ${d.toTimeString().slice(0,5)}  ${msg}`;const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');arr.unshift(line);localStorage.setItem('hamrlog',JSON.stringify(arr.slice(0,50)));renderLog();}
 function renderLog(){const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');$('log').innerHTML=arr.map(x=>`<li>${x}</li>`).join('')||'<li>nothing yet</li>';}
