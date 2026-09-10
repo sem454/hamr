@@ -72,7 +72,6 @@
 <div id="paneFull" class="hidden">
   <div class="card">
     <div class="small">Runs the full test at the measured cadence: level 1 is 8.0 km/h, then 9.0, and +0.5 km/h per level. Counts are called level-shuttle (7-1, 7-2 ...) like the official audio; the small readout keeps the running total. Triple beep at each level change. Tap STOP when you cannot make the line; your score is the last shuttle you completed.</div>
-    <div class="row" style="margin-top:10px"><div><label>Stop automatically at (shuttle number or level-shuttle, e.g. 50 or 6-9; 0 = run to failure)</label><input id="inStopAt" type="text" inputmode="numeric" value="0"></div></div>
   </div>
 </div>
 
@@ -155,13 +154,14 @@ function buildInterval(){const L=LEVELS[+$('selLevel').value-1],n=+$('inShuttles
     if(s<sets){ev.push({t:t+0.5,kind:'rest',set:s,level:L[0],cad:L[3],rest:rest,spoken:`Rest ${rest} seconds.`});t+=rest;}}
   ev.push({t:t+0.6,kind:'done',level:L[0],cad:L[3]});sessionLabel=`${sets}x${n} @ L${L[0]} (${L[3].toFixed(2)} s)`;return ev;}
 function buildFull(){const ev=[];let t=$('chkCountdown').checked?10:3;ev.push({t,kind:'setstart',set:1,level:1,cad:LEVELS[0][3],spoken:'Level 1. Go.'});let n=0;
-  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],lab:`${L[0]}-${k-L[1]+1}`,spoken:nextL?`${L[0]}-${k-L[1]+1}. Level ${nextL[0]}.`:`${L[0]}-${k-L[1]+1}`});if(stopAt&&k>=stopAt)break;}if(stopAt&&n>=stopAt)break;}
-  ev.push({t:t+0.6,kind:'done'});sessionLabel=stopAt?`Full test to ${lab(stopAt)} (shuttle ${stopAt})`:'Full test to failure';return ev;}
+  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],lab:`${L[0]}-${k-L[1]+1}`,spoken:nextL?`${L[0]}-${k-L[1]+1}. Level ${nextL[0]}.`:`${L[0]}-${k-L[1]+1}`});}}
+  // Full test never auto-stops: only the STOP button ends it (the 'done' event only exists past the last level in the table).
+  ev.push({t:t+0.6,kind:'done'});sessionLabel='Full test to failure';return ev;}
 
 function lab(k){const L=levelOf(k);return L?`${L[0]}-${k-L[1]+1}`:String(k)}
 function parseStop(v){v=String(v||"").trim();if(!v)return 0;const m=v.match(/^(\d+)\s*[-.,:\s]\s*(\d+)$/);if(m){const L=LEVELS[+m[1]-1];if(!L)return 0;const k=L[1]+(+m[2])-1;return k<=L[2]?k:L[2];}const n=parseInt(v,10);return isFinite(n)&&n>0?n:0;}
 function fmt(s){s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
-function start(){ensureAudio();stopAt=mode==='full'?parseStop($('inStopAt').value):0;events=mode==='full'?buildFull():buildInterval();if(mode==='table'){setTab('int');events=buildInterval();}
+function start(){ensureAudio();stopAt=0;events=mode==='full'?buildFull():buildInterval();if(mode==='table'){setTab('int');events=buildInterval();}
   idx=0;scheduled=0;lastShuttle=0;curSet=1;running=true;t0=ctx.currentTime+0.05;$('btnStart').classList.add('hidden');$('btnStop').classList.remove('hidden');$('intSetup').style.opacity=.5;lock();
   // countdown beeps
   const cd=$('chkCountdown').checked?10:3;for(let i=3;i>=1;i--)beep(t0+cd-i,700,0.12,0.6);say(cd===10?'Ten seconds':'Three');
