@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e13">
 <title>HAMR Runner</title>
 <style>
   :root{--bg:#0b0e13;--fg:#e8ecf1;--dim:#8a94a3;--acc:#4cc9f0;--ok:#3ddc84;--warn:#ffb020;--bad:#ff4d4d;--card:#151a22}
@@ -197,5 +200,6 @@ function renderLog(){const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]')
 renderLog();
 $('btnStart').onclick=start;$('btnStop').onclick=()=>finish('stopped');$('btnReset').onclick=reset;$('btnClear').onclick=()=>{localStorage.removeItem('hamrlog');renderLog();};
 </script>
+<script>if('serviceWorker'in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}</script>
 </body>
 </html>
