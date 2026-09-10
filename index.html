@@ -33,7 +33,7 @@
   .bar{height:10px;background:#0f1319;border-radius:5px;overflow:hidden;margin-top:14px}
   .bar i{display:block;height:100%;background:var(--acc);width:0%}
   .btn{width:100%;padding:18px;border:0;border-radius:12px;font-size:20px;font-weight:700;margin-top:8px}
-  .go{background:var(--ok);color:#000}.stop{background:var(--bad);color:#fff}.mid{background:#2a3240;color:var(--fg);font-size:16px;padding:12px}
+  .go{background:var(--ok);color:#000}.stop{background:var(--bad);color:#fff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.mid{background:#2a3240;color:var(--fg);font-size:16px;padding:12px}
   .state{font-size:22px;font-weight:600;margin-top:6px;min-height:28px}
   .state.rest{color:var(--warn)}.state.run{color:var(--ok)}.state.ready{color:var(--acc)}
   table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
@@ -74,7 +74,7 @@
 
 <div id="paneFull" class="hidden">
   <div class="card">
-    <div class="small">Runs the full test at the measured cadence: level 1 is 8.0 km/h, then 9.0, and +0.5 km/h per level. Counts are called level-shuttle (7-1, 7-2 ...) like the official audio; the small readout keeps the running total. Triple beep at each level change. Tap STOP when you cannot make the line; your score is the last shuttle you completed.</div>
+    <div class="small">Runs the full test at the measured cadence: level 1 is 8.0 km/h, then 9.0, and +0.5 km/h per level. Counts are called level-shuttle (7-1, 7-2 ...) like the official audio; the small readout keeps the running total. Triple beep at each level change. Hold STOP when you cannot make the line; your score is the last shuttle you completed.</div>
   </div>
 </div>
 
@@ -98,13 +98,13 @@
     <div><b id="mClock">0:00</b><span>elapsed</span></div>
   </div>
   <button class="btn go" id="btnStart">START</button>
-  <button class="btn stop hidden" id="btnStop">STOP</button>
+  <button class="btn stop hidden" id="btnStop">HOLD TO STOP</button>
   <button class="btn mid" id="btnReset">RESET</button>
   <div class="toggles">
     <label><input type="checkbox" id="chkVoice" checked> Voice count</label>
     <label><input type="checkbox" id="chkCountdown" checked> 10 s countdown</label>
   </div>
-  <div class="small" style="margin-top:8px">Silent switch on an iPhone mutes web audio. Ringer ON, volume up. Screen stays awake while running.</div>
+  <div class="small" style="margin-top:8px">Ringer ON, volume up (the silent switch mutes web audio). Your music keeps playing underneath the counts. STOP takes a 1.5 s hold so a stray touch cannot end a run. Screen stays awake while running.</div>
 </div>
 
 <div class="card">
@@ -113,7 +113,6 @@
   <button class="btn mid" id="btnClear">Clear log</button>
 </div>
 
-<audio id="silent" loop playsinline src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="></audio>
 
 <script>
 // Measured from the official AF 20 m HAMR audio (Ellsworth FSS copy, 21:54 long), beep-to-beep, 2026-09-09.
@@ -137,13 +136,30 @@ function intInfo(){const L=LEVELS[+$('selLevel').value-1],n=+$('inShuttles').val
 ['selLevel','inShuttles','inSets','inRest'].forEach(id=>$(id).addEventListener('input',intInfo));intInfo();
 
 // audio
+// Everything (beeps and voice) goes through one AudioContext with the audio session set to 'ambient', so the
+// phone's background music keeps playing underneath. speechSynthesis and <audio> elements each grab a
+// 'playback' session on iOS and stop other apps' audio, so neither is used.
+function mixWithOthers(){try{if(navigator.audioSession)navigator.audioSession.type='ambient';}catch(e){}}
+mixWithOthers();
 let ctx=null;
-function ensureAudio(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();}if(ctx.state==='suspended')ctx.resume();try{$('silent').play().catch(()=>{});}catch(e){}}
+function getCtx(){if(!ctx){mixWithOthers();ctx=new (window.AudioContext||window.webkitAudioContext)();}return ctx;}
+function ensureAudio(){getCtx();if(ctx.state!=='running')ctx.resume();}
+// voice: pre-rendered clips (voice/*.mp3), decoded once, sequenced through the same context
+const VOICE=['level','go','set','rest','stoppedat','done','reset','tenseconds','threesec','seconds','t30','t40','t50','t60','t70','t80','t90'].concat(Array.from({length:21},(_,i)=>'n'+(i+1)));
+const clips={};let voiceReady=false;const voiceSrc=new Set();
+async function loadVoice(){try{const c=getCtx();await Promise.all(VOICE.map(async k=>{const r=await fetch('voice/'+k+'.mp3');if(!r.ok)throw new Error(k);const b=await r.arrayBuffer();clips[k]=await new Promise((res,rej)=>c.decodeAudioData(b,res,rej));}));voiceReady=true;}catch(e){voiceReady=false;}}
+loadVoice();
+function num(n){n=Math.round(+n);if(!(n>0)||n>=100)return[];if(n<=21)return['n'+n];const t=Math.floor(n/10)*10,o=n%10;return[(t===20?'n20':'t'+t)].concat(o?['n'+o]:[]);}
+const WORDS={level:'level',go:'go',set:'set',rest:'rest',stoppedat:'stopped at',done:'done',reset:'reset',tenseconds:'ten seconds',threesec:'three',seconds:'seconds',t30:'thirty',t40:'forty',t50:'fifty',t60:'sixty',t70:'seventy',t80:'eighty',t90:'ninety'};
+function hushVoice(){for(const v of voiceSrc){try{v.stop(0);}catch(e){}}voiceSrc.clear();}
 const pending=new Set();
 function beep(t,freq=1000,dur=0.18,gain=0.9){const o=ctx.createOscillator(),g=ctx.createGain();pending.add(o);o.onended=()=>pending.delete(o);o.type='square';o.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+0.005);g.gain.setValueAtTime(gain,t+dur-0.02);g.gain.linearRampToValueAtTime(0,t+dur);o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+dur+0.01);}
 function triple(t){beep(t,1200,0.12);beep(t+0.17,1200,0.12);beep(t+0.34,1200,0.12);}
-function hush(){for(const o of pending){try{o.stop(0);}catch(e){}}pending.clear();if(window.speechSynthesis)try{speechSynthesis.cancel();}catch(e){}}
-function say(txt){if(!$('chkVoice').checked||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(txt);u.rate=1.15;u.volume=1;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function hush(){for(const o of pending){try{o.stop(0);}catch(e){}}pending.clear();hushVoice();if(window.speechSynthesis)try{speechSynthesis.cancel();}catch(e){}}
+function say(tokens){if(!$('chkVoice').checked||!tokens||!tokens.length)return;hushVoice();
+  if(!voiceReady||!ctx){ // clips failed to load: last-resort speech synthesis (this one does stop background music on iOS)
+    if(!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(tokens.map(k=>WORDS[k]||(k[0]==='n'?k.slice(1):k)).join(' '));u.rate=1.15;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}return;}
+  let t=ctx.currentTime+0.02;for(const k of tokens){const b=clips[k];if(!b)continue;const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=b;g.gain.value=1.3;src.connect(g).connect(ctx.destination);voiceSrc.add(src);src.onended=()=>voiceSrc.delete(src);src.start(t);t+=b.duration+0.05;}}
 
 // wake lock
 let wl=null;async function lock(){try{if('wakeLock'in navigator){wl=await navigator.wakeLock.request('screen');}}catch(e){}}
@@ -153,11 +169,11 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 // schedule = list of events {t, kind:'beep'|'triple'|'set'|'rest'|'done', shuttle, level, set, label, spoken}
 let events=[],idx=0,running=false,t0=0,timer=null,sessionLabel='',stopAt=0,lastShuttle=0,curSet=0;
 function buildInterval(){const L=LEVELS[+$('selLevel').value-1],n=+$('inShuttles').value,sets=+$('inSets').value,rest=+$('inRest').value;const ev=[];let t=$('chkCountdown').checked?10:3;
-  for(let s=1;s<=sets;s++){ev.push({t,kind:'setstart',set:s,level:L[0],cad:L[3],spoken:`Set ${s}. Go.`});for(let k=1;k<=n;k++){t+=L[3];ev.push({t,kind:k===n?'setend':'beep',shuttle:k,set:s,level:L[0],cad:L[3],spoken:String(k)});}
-    if(s<sets){ev.push({t:t+0.5,kind:'rest',set:s,level:L[0],cad:L[3],rest:rest,spoken:`Rest ${rest} seconds.`});t+=rest;}}
+  for(let s=1;s<=sets;s++){ev.push({t,kind:'setstart',set:s,level:L[0],cad:L[3],spoken:['set'].concat(num(s),['go'])});for(let k=1;k<=n;k++){t+=L[3];ev.push({t,kind:k===n?'setend':'beep',shuttle:k,set:s,level:L[0],cad:L[3],spoken:num(k)});}
+    if(s<sets){ev.push({t:t+0.5,kind:'rest',set:s,level:L[0],cad:L[3],rest:rest,spoken:['rest'].concat(num(rest),num(rest).length?['seconds']:[])});t+=rest;}}
   ev.push({t:t+0.6,kind:'done',level:L[0],cad:L[3]});sessionLabel=`${sets}x${n} @ L${L[0]} (${L[3].toFixed(2)} s)`;return ev;}
-function buildFull(){const ev=[];let t=$('chkCountdown').checked?10:3;ev.push({t,kind:'setstart',set:1,level:1,cad:LEVELS[0][3],spoken:'Level 1. Go.'});let n=0;
-  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],lab:`${L[0]}-${k-L[1]+1}`,spoken:nextL?`${L[0]}-${k-L[1]+1}. Level ${nextL[0]}.`:`${L[0]}-${k-L[1]+1}`});}}
+function buildFull(){const ev=[];let t=$('chkCountdown').checked?10:3;ev.push({t,kind:'setstart',set:1,level:1,cad:LEVELS[0][3],spoken:['level','n1','go']});let n=0;
+  for(const L of LEVELS){for(let k=L[1];k<=L[2];k++){t+=L[3];n=k;const nextL=k===L[2]&&L[0]<LEVELS.length?LEVELS[L[0]]:null;ev.push({t,kind:nextL?'levelup':'beep',shuttle:k,level:nextL?nextL[0]:L[0],cad:nextL?nextL[3]:L[3],lab:`${L[0]}-${k-L[1]+1}`,spoken:nextL?num(L[0]).concat(num(k-L[1]+1),['level'],num(nextL[0])):num(L[0]).concat(num(k-L[1]+1))});}}
   // Full test never auto-stops: only the STOP button ends it (the 'done' event only exists past the last level in the table).
   ev.push({t:t+0.6,kind:'done'});sessionLabel='Full test to failure';return ev;}
 
@@ -165,9 +181,9 @@ function lab(k){const L=levelOf(k);return L?`${L[0]}-${k-L[1]+1}`:String(k)}
 function parseStop(v){v=String(v||"").trim();if(!v)return 0;const m=v.match(/^(\d+)\s*[-.,:\s]\s*(\d+)$/);if(m){const L=LEVELS[+m[1]-1];if(!L)return 0;const k=L[1]+(+m[2])-1;return k<=L[2]?k:L[2];}const n=parseInt(v,10);return isFinite(n)&&n>0?n:0;}
 function fmt(s){s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
 function start(){ensureAudio();stopAt=0;events=mode==='full'?buildFull():buildInterval();if(mode==='table'){setTab('int');events=buildInterval();}
-  idx=0;scheduled=0;lastShuttle=0;curSet=1;running=true;t0=ctx.currentTime+0.05;$('btnStart').classList.add('hidden');$('btnStop').classList.remove('hidden');$('intSetup').style.opacity=.5;lock();
+  idx=0;scheduled=0;lastShuttle=0;curSet=1;running=true;t0=ctx.currentTime+0.05;$('btnStart').classList.add('hidden');$('btnStop').textContent='HOLD TO STOP';$('btnStop').classList.remove('hidden');$('intSetup').style.opacity=.5;lock();
   // countdown beeps
-  const cd=$('chkCountdown').checked?10:3;for(let i=3;i>=1;i--)beep(t0+cd-i,700,0.12,0.6);say(cd===10?'Ten seconds':'Three');
+  const cd=$('chkCountdown').checked?10:3;for(let i=3;i>=1;i--)beep(t0+cd-i,700,0.12,0.6);say(cd===10?['tenseconds']:['threesec']);
   setState('ready','Line up. Start beep in');$('dLabel').textContent=mode==='full'?'Level-shuttle':'Shuttle in set';$('dNum').textContent='0';$('mTotal').textContent=mode==='full'?'0':'-';$('mLevel').textContent=events[0].level;$('mCad').textContent=events[0].cad.toFixed(2);
   timer=setInterval(tick,50);}
 function setState(cls,txt){const e=$('dState');e.className='state '+cls;e.textContent=txt;}
@@ -189,16 +205,22 @@ function tick(){if(!running)return;const now=ctx.currentTime-t0;
   $('mClock').textContent=fmt(now);}
 function finish(how){running=false;clearInterval(timer);scheduled=0;hush();unlock();$('btnStart').classList.remove('hidden');$('btnStop').classList.add('hidden');$('intSetup').style.opacity=1;
   const L=mode==='full'&&lastShuttle>0?levelOf(lastShuttle):null;const msg=mode==='full'?`${how==='stopped'?'Stopped':'Done'} at ${L?lab(lastShuttle)+' (shuttle '+lastShuttle+')':'shuttle '+lastShuttle}`:`${how==='stopped'?'Stopped':'Done'}: ${sessionLabel}, ${lastShuttle} shuttles total`;
-  setState('ready',msg);say(how==='stopped'?`Stopped at ${mode==='full'&&L?lab(lastShuttle).replace('-',' dash '):lastShuttle}`:'Done');addLog(msg);}
+  setState('ready',msg);say(how==='stopped'?['stoppedat'].concat(mode==='full'&&L?num(L[0]).concat(num(lastShuttle-L[1]+1)):num(lastShuttle)):['done']);addLog(msg);}
 function reset(){const was=running;running=false;clearInterval(timer);timer=null;scheduled=0;idx=0;lastShuttle=0;curSet=0;events=[];hush();unlock();
   $('btnStart').classList.remove('hidden');$('btnStop').classList.add('hidden');$('intSetup').style.opacity=1;
   $('dLabel').textContent='Ready';$('dNum').textContent='0';setState('ready','Tap START');$('dBar').style.width='0%';
   $('mLevel').textContent='-';$('mTotal').textContent='-';$('mCad').textContent='-';$('mNext').textContent='-';$('mClock').textContent='0:00';
-  if(was)say('Reset');}
+  if(was)say(['reset']);}
 function addLog(msg){const d=new Date();const line=`${d.toISOString().slice(0,10)} ${d.toTimeString().slice(0,5)}  ${msg}`;const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');arr.unshift(line);localStorage.setItem('hamrlog',JSON.stringify(arr.slice(0,50)));renderLog();}
 function renderLog(){const arr=JSON.parse(localStorage.getItem('hamrlog')||'[]');$('log').innerHTML=arr.map(x=>`<li>${x}</li>`).join('')||'<li>nothing yet</li>';}
 renderLog();
-$('btnStart').onclick=start;$('btnStop').onclick=()=>finish('stopped');$('btnReset').onclick=reset;$('btnClear').onclick=()=>{localStorage.removeItem('hamrlog');renderLog();};
+$('btnStart').onclick=start;
+// STOP needs a 1.5 s hold. A single tap (pocket, thumb while running) no longer ends the run.
+const bs=$('btnStop');let holdT=null;
+bs.addEventListener('pointerdown',e=>{e.preventDefault();bs.textContent='KEEP HOLDING...';holdT=setTimeout(()=>{holdT=null;finish('stopped');},1500);});
+const cancelHold=()=>{if(holdT){clearTimeout(holdT);holdT=null;bs.textContent='HOLD 1.5 s TO STOP';}};
+['pointerup','pointercancel','pointerleave','pointerout'].forEach(ev=>bs.addEventListener(ev,cancelHold));
+bs.addEventListener('contextmenu',e=>e.preventDefault());$('btnReset').onclick=reset;$('btnClear').onclick=()=>{localStorage.removeItem('hamrlog');renderLog();};
 </script>
 <script>if('serviceWorker'in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}</script>
 </body>
